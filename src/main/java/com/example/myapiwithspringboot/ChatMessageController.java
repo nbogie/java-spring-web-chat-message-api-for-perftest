@@ -13,6 +13,7 @@ public class ChatMessageController {
     //TODO: store these chat messages in a service representing a database
     //  instead of here.  (I don't think we're guaranteed to have a single controller)
     private ArrayList<ChatMessage> chatMessages;
+    private final Object dbLock = new Object();
 
     private void resetChatMessages() {
         chatMessages = new ArrayList<>();
@@ -30,52 +31,82 @@ public class ChatMessageController {
     }
 
     @GetMapping("/messages")
-    public List<ChatMessage> getAllMessages() {
+    public List<ChatMessage> getAllMessages() throws InterruptedException {
         //Our domain object will be converted to JSON automatically by the Jackson 2 library
-        return chatMessages;
+        this.sleepThreadRandomMillis(10, 200);
+        synchronized (dbLock) {
+            return new ArrayList<>(chatMessages);
+        }
     }
 
 
+    public long sleepThreadRandomMillis(int minDuration, int maxDuration) throws InterruptedException {
+        long duration = (long) (minDuration + (Math.random() * maxDuration - minDuration));
+        Thread.sleep(duration);
+        return duration;
+    }
+
     @GetMapping("/messages/{id}")
-    public Optional<ChatMessage> getOneMessage(@PathVariable("id") Long soughtId) {
-        for (ChatMessage chatMessage : chatMessages) {
-            if (chatMessage.id() == soughtId) {
-                return Optional.of(chatMessage);
+    public Optional<ChatMessage> getOneMessage(@PathVariable("id") Long soughtId) throws InterruptedException {
+        sleepThreadRandomMillis(10, 200);
+
+
+        synchronized (dbLock) {
+            for (ChatMessage chatMessage : chatMessages) {
+                if (chatMessage.id() == soughtId) {
+                    return Optional.of(chatMessage);
+                }
             }
+            return Optional.empty();
         }
-        return Optional.empty();
     }
 
 
     @PostMapping("/messages")
-    public ResponseEntity<ChatMessage> addChatMessage(@RequestBody ChatMessage message) {
-        ChatMessage newMsg = new ChatMessage(nextMessageId++, message.author(), message.text());
+    public ResponseEntity<ChatMessage> addChatMessage(@RequestBody ChatMessage message) throws InterruptedException {
+        this.sleepThreadRandomMillis(0, 300);
 
-        chatMessages.add(newMsg);
-        //TODO: remove older messages once we have 1000 to prevent performance testing from exhausting memory.
-        return ResponseEntity.ok(newMsg);
+        synchronized (dbLock) {
+
+            ChatMessage newMsg = new ChatMessage(nextMessageId++, message.author(), message.text());
+
+            chatMessages.add(newMsg);
+            //TODO: remove older messages once we have 1000 to prevent performance testing from exhausting memory.
+            return ResponseEntity.ok(newMsg);
+        }
     }
 
     @PostMapping("/messages/reset")
     public boolean resetAllMessages() {
-        resetChatMessages();
-        return true;
+        synchronized (dbLock) {
+
+            resetChatMessages();
+            return true;
+        }
     }
 
     @DeleteMapping("/messages")
     public long deleteAllMessages() {
-        long prevSize = chatMessages.size();
-        chatMessages.clear();
-        return prevSize;
+        synchronized (dbLock) {
+
+            long prevSize = chatMessages.size();
+            chatMessages.clear();
+            return prevSize;
+        }
     }
 
     @DeleteMapping("/messages/{id}")
-    public ResponseEntity<Long> deleteOneMessage(@PathVariable("id") Long idToDelete) {
-        boolean successfullyRemoved = chatMessages.removeIf(message -> message.id() == idToDelete);
-        if (successfullyRemoved) {
-            return ResponseEntity.ok(idToDelete);
-        } else {
-            return ResponseEntity.notFound().build();
+    public ResponseEntity<Long> deleteOneMessage(@PathVariable("id") Long idToDelete) throws InterruptedException {
+        this.sleepThreadRandomMillis(20, 100);
+
+        synchronized (dbLock) {
+
+            boolean successfullyRemoved = chatMessages.removeIf(message -> message.id() == idToDelete);
+            if (successfullyRemoved) {
+                return ResponseEntity.ok(idToDelete);
+            } else {
+                return ResponseEntity.notFound().build();
+            }
         }
     }
 
