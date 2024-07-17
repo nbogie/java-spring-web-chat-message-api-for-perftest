@@ -66,7 +66,6 @@ public class ChatMessageController {
     public long deleteAllMessages() {
         long prevSize = chatMessages.size();
         chatMessages.clear();
-        System.out.println("now cm is: " + chatMessages.size());
         return prevSize;
     }
 
