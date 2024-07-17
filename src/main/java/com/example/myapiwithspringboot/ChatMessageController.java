@@ -15,11 +15,14 @@ public class ChatMessageController {
     private ArrayList<ChatMessage> chatMessages;
 
     private void resetChatMessages() {
-        chatMessages = new ArrayList<ChatMessage>();
-        chatMessages.add(new ChatMessage(1, "abc", "def"));
-        chatMessages.add(new ChatMessage(2, "abc2", "def2"));
-        chatMessages.add(new ChatMessage(3, "abc3", "def3"));
+        chatMessages = new ArrayList<>();
+        chatMessages.add(new ChatMessage(1, "author1", "message1"));
+        chatMessages.add(new ChatMessage(2, "author2", "message2"));
+        chatMessages.add(new ChatMessage(3, "author3", "message3"));
+        nextMessageId = 0;
     }
+
+    private int nextMessageId = 0;
 
     public ChatMessageController() {
         System.out.println("Making a new ChatMessageController and all the messages again");
@@ -43,18 +46,28 @@ public class ChatMessageController {
         return Optional.empty();
     }
 
-    @DeleteMapping("/messages")
-    public long deleteAllMessages() {
-        long prevSize = chatMessages.size();
-        chatMessages.clear();
-        System.out.println("now cm is: " + chatMessages.size());
-        return prevSize;
+
+    @PostMapping("/messages")
+    public ResponseEntity<ChatMessage> addChatMessage(@RequestBody ChatMessage message) {
+        ChatMessage newMsg = new ChatMessage(nextMessageId++, message.author(), message.text());
+
+        chatMessages.add(newMsg);
+        //TODO: remove older messages once we have 1000 to prevent performance testing from exhausting memory.
+        return ResponseEntity.ok(newMsg);
     }
 
     @PostMapping("/messages/reset")
     public boolean resetAllMessages() {
         resetChatMessages();
         return true;
+    }
+
+    @DeleteMapping("/messages")
+    public long deleteAllMessages() {
+        long prevSize = chatMessages.size();
+        chatMessages.clear();
+        System.out.println("now cm is: " + chatMessages.size());
+        return prevSize;
     }
 
     @DeleteMapping("/messages/{id}")
